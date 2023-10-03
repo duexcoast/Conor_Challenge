@@ -1,4 +1,4 @@
-package challenge
+package main
 
 import (
 	"bufio"
@@ -8,36 +8,25 @@ import (
 	"strconv"
 )
 
-const ccRegExp = `(^[456]\d\d\d)(?:-*(\d\d\d\d)){3}$`
+const ccRegExp = `^[456]\d{3}(-?\d{4}){3}$`
 
-// Regular Expression for matching valid credit card numbers. Conditions:
-//   - Must start with a 4, 5, or 6
-//   - Must contain exactly 16 digits
-//   - Must only consist of digits [0-9]
-//   - May have digits in groups of 4, seperated by one hyphen "-"
-//   - Must NOT use any other separator like " ", or "_"
-//   - Must NOT have 4 or more consecutive repeated digits (NOT MET)
-//
-//   NOTE: Go's stdlib regexp package does not allow for lookarounds or
-//   back references. This design choice was made in order to ensure that
-//   the match time is always linear in length to the input string. In
-//   order to validate the final condition above with regex alone (must
-//   NOT have 4 or more consecutive repeated digits), we would need to use
-//   either back references or negative look aheads.
-//
-//   In lieu of this, we can check inputs that successfully match all other
-//   conditions with a simple loop to determine if there is 4 or more
-//   consecutive repeated digits.
-//
-//   Alternatively, we can use a PCRE regex library that allows lookaheads
-//   (at the expense of guaranteed linear time), which would be safe
-//   assuming we control the input and validate the length of the input
-//   strings.
+var re = regexp.MustCompile(ccRegExp)
 
-func validateInput(r io.Reader, w io.Writer) error {
-	re := regexp.MustCompile(ccRegExp)
+// REGEX EXPLANATION:
+//
+//	^[456]		- String begins with either 4, 5 or 6.
+//	\d{3}		- Followed by 3 digits 0-9.
+//	(-?			- There may optionally be a single hyphen separating groups of
+//				  four digits
+//	\d{4})		- Group of four digits 0-9.
+//	{3}$		- Repeat the following capture group (including the optional
+//				  hyphen) three times, and end the match here. This ensures
+//				  that the match consists of exactly 16 digits.
 
-	// Read input from reader parameter
+type validator func([]byte) bool
+
+func validateInput(r io.Reader, w io.Writer, v validator) error {
+	// Read input from r
 	scanner := bufio.NewScanner(r)
 
 	// First line of input is an int indicating the number of lines to process
@@ -49,10 +38,10 @@ func validateInput(r io.Reader, w io.Writer) error {
 		return err
 	}
 
-	// read n lines from StdIn and perform validation
+	// Read n lines from r and perform validation. Write results to w
 	for i := 0; i < n; i++ {
 		scanner.Scan()
-		ok := validateCC(re, scanner.Text())
+		ok := v(scanner.Bytes())
 		switch ok {
 		case true:
 			fmt.Fprintln(w, "Valid")
@@ -63,10 +52,14 @@ func validateInput(r io.Reader, w io.Writer) error {
 	return nil
 }
 
-func validateCC(re *regexp.Regexp, input string) bool {
-	if re.MatchString(input) {
-		if !containsNConsecutiveRepeatedDigits(input, 4) {
-			// successful validation
+// validate returns true if the card has been successfully validated. If the
+// card is invalid it will return false.
+func validate(input []byte) bool {
+	if re.Match(input) {
+		// For all regex matches, check if there is 4 or more consecutive
+		// repeated digits
+		if !nConsecElems(input, 4) {
+			// Successful validation
 			return true
 		}
 		// Contains 4 or more consecutive repeated digits
@@ -76,10 +69,10 @@ func validateCC(re *regexp.Regexp, input string) bool {
 	return false
 }
 
-// Returns true if the input string contains n consecutive digits, otherwise
-// returns false. This function will ignore hyphens in the input string.
-// This function is not Unicode safe, but that's ok for these purposes.
-func containsNConsecutiveRepeatedDigits(input string, n int) bool {
+// Returns true if the input contains n consecutive repeated digits,
+// otherwise returns false. This function will ignore hyphens in the input
+// string. This function is not Unicode safe, but that's ok for these purposes.
+func nConsecElems(input []byte, n int) bool {
 	counter := 0
 	prevElem := input[0]
 
