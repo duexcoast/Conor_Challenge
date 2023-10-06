@@ -12,13 +12,15 @@ reasoning for this absence is to guarantee match time linear to the length of
 the string using any arbitrary regular expression from users. 
 
 In order to solve the problem using simply a regular expression you would need
-to utilize those missing features. In lieu of that, with the `regexp` package
-solution, I just implemented a short loop to satisfy that final condition.
+to utilize those missing features. Particularly for the last condition in the 
+problem: no more than four consecutive repeated digits. In lieu of that, with 
+the `regexp` package solution, I just implemented a short loop to satisfy that 
+final condition.
 
 Alternatively, I also found a more expressive regex package, `regexp2`, which 
 fully implements PCRE. This solution was drastically shorter(a 6 line function), 
 although after benchmarking the two approaches, the solution using the standard 
-library was approximately 15x faster.
+library was approximately 15x-17x faster.
 
 ### Benchmarks
 
